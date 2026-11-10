@@ -96,16 +96,6 @@ bool process_record_kb(uint16_t keycode, keyrecord_t *record) {
         }
     }
 #endif
-    switch (keycode) {
-        case KC_MISSION_CONTROL:
-            host_consumer_send(record->event.pressed ? 0x29F : 0);
-            return false;
-        case KC_LAUNCHPAD:
-            host_consumer_send(record->event.pressed ? 0x2A0 : 0);
-            return false;
-        default:
-            break;
-    }
     return process_record_user(keycode, record);
 }
 
@@ -135,9 +125,7 @@ bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
 
 bool dip_switch_update_user(uint8_t index, bool active) {
     switch (index) {
-        case 1:
-            layer_move(active ? MAC_BASE : WIN_BASE);
-            return false;
+        // index 1 (Win/Mac slider) is unused: single layout.
 #ifdef BLUETOOTH_ENABLE
         case 0:
             // dip switch is inactive in bt state

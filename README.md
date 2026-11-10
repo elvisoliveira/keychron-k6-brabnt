@@ -22,9 +22,12 @@ then pair from the host with `bluetoothctl pair` → `trust` → `connect` (plai
 ```
 `bootstrap.sh` generates `.qmk/` and `.tools/` (gitignored).
 
-**Needs:** `qmk` (Arch: pacman `qmk`), `git`, `make`, `arm-none-eabi-gcc`,
-`hidapi`+`libusb` headers, a running polkit agent (`pkexec`), and the OS on
-**br-abnt2** (the `/?\|` and quote keys assume it).
+**Needs:** `git`, `make`, `python3`, `curl`, `hidapi`+`libusb` headers (the `qmk`
+CLI and the Arm GNU Toolchain are fetched into `.tools/`, nothing system-wide), and the OS on **br-abnt2** (the `/?\|` and quote
+keys assume it). Flashing without root needs the udev rule, once:
+```sh
+sudo cp udev/70-sonix-bootloader.rules /etc/udev/rules.d/ && sudo udevadm control --reload
+```
 
 ## Enter the bootloader
 Ready when `lsusb` shows `0c45:7040` (RGB off, keys dead).

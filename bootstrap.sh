@@ -1,8 +1,8 @@
 #!/bin/sh
 # From zero to a compiled 'brabnt' firmware for the Keychron K6 RGB (ANSI).
-# Clones upstream SonixQMK (pinned), patches the iton_bt driver, links this
-# repo's keyboard + keymap into the tree, builds the SonixFlasherC flasher and
-# compiles. Idempotent: safe to re-run. .qmk/ and .tools/ are gitignored.
+# Fetches the toolchain into .tools/, clones upstream SonixQMK (pinned), patches
+# it, links this repo's keyboard + keymap into the tree, builds the SonixFlasherC
+# flasher and compiles. Idempotent: safe to re-run. .qmk/ and .tools/ are gitignored.
 set -eu
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
@@ -17,9 +17,31 @@ QMK_URL="https://github.com/SonixQMK/qmk_firmware.git"
 QMK_BRANCH="sn32_develop"
 QMK_PIN="62973ee48a976c6f7cc6d4f7b198bd48a2fdfe60"
 
-for t in git qmk make arm-none-eabi-gcc; do
+# Toolchain, kept in .tools/ (nothing installed system-wide): the qmk CLI in a
+# venv and the official Arm GNU Toolchain tarball (gcc + binutils + newlib).
+ARM_NAME="arm-gnu-toolchain-14.2.rel1-x86_64-arm-none-eabi"
+ARM_URL="https://developer.arm.com/-/media/Files/downloads/gnu/14.2.rel1/binrel/$ARM_NAME.tar.xz"
+ARM_SHA256="62a63b981fe391a9cbad7ef51b17e49aeaa3e7b0d029b36ca1e9c3b2a9b78823"
+
+for t in git make python3 curl; do
     command -v "$t" >/dev/null || { echo "missing prerequisite: $t"; exit 1; }
 done
+
+mkdir -p "$TOOLS"
+if [ ! -x "$TOOLS/venv/bin/qmk" ]; then
+    echo ">> installing qmk CLI into $TOOLS/venv"
+    python3 -m venv "$TOOLS/venv"
+    "$TOOLS/venv/bin/pip" install -q qmk
+fi
+if [ ! -x "$TOOLS/$ARM_NAME/bin/arm-none-eabi-gcc" ]; then
+    echo ">> downloading $ARM_NAME"
+    curl -fL -o "$TOOLS/$ARM_NAME.tar.xz" "$ARM_URL"
+    echo "$ARM_SHA256  $TOOLS/$ARM_NAME.tar.xz" | sha256sum -c -
+    tar -xJf "$TOOLS/$ARM_NAME.tar.xz" -C "$TOOLS"
+    rm "$TOOLS/$ARM_NAME.tar.xz"
+fi
+PATH="$TOOLS/venv/bin:$TOOLS/$ARM_NAME/bin:$PATH"
+export PATH
 
 # 1) QMK tree, pinned.
 if [ ! -d "$QMK/.git" ]; then
@@ -30,18 +52,21 @@ fi
 echo ">> init submodules"
 ( cd "$QMK" && git submodule update --init --depth 1 lib/chibios lib/chibios-contrib lib/printf )
 
-# 2) Patches (see README): iton_bt_deinit + SN32 SPI slave TX fix. Skipped if applied.
+# 2) Patches (see README): iton_bt_deinit + SN32 SPI slave TX fix. Skipped if
+#    already applied; a patch that no longer applies aborts the build.
 for p in "$DIR"/patches/*.patch; do
     if ( cd "$QMK" && git apply --check "$p" 2>/dev/null ); then
         echo ">> applying $(basename "$p")"
         ( cd "$QMK" && git apply "$p" )
+    elif ! ( cd "$QMK" && git apply --reverse --check "$p" 2>/dev/null ); then
+        echo "patch neither applies nor is already applied: $p (QMK_PIN bumped?)"
+        exit 1
     fi
 done
 
 # 3) SonixFlasherC (needs hidapi + libusb dev headers).
 if [ ! -x "$TOOLS/SonixFlasherC/sonixflasher" ]; then
     echo ">> building SonixFlasherC"
-    mkdir -p "$TOOLS"
     [ -d "$TOOLS/SonixFlasherC/.git" ] || \
         git clone --depth 1 https://github.com/SonixQMK/SonixFlasherC.git "$TOOLS/SonixFlasherC"
     ( cd "$TOOLS/SonixFlasherC" && make )

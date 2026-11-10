@@ -19,12 +19,10 @@ enum custom_keycodes {
     KC_BTPAIR
 };
 
-enum layer_names { WIN_BASE, WIN_FN1, MAC_BASE, MAC_FN1, FN2 };
+enum layer_names { BASE, FN1, FN2 };
 
 #define KC_TASK LGUI(KC_TAB)        // Task viewer
 #define KC_FLXP LGUI(KC_E)          // Windows file explorer
-#define KC_MCTL KC_MISSION_CONTROL  // Mission Control
-#define KC_LPAD KC_LAUNCHPAD        // Launchpad
 
 #define BR_SLSH KC_INT1   // under abnt2 => / ?
 #define BR_BSLS KC_NUBS   // under abnt2 => \ |

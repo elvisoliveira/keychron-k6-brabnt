@@ -10,8 +10,8 @@
  *   - right-mod slot    -> / ?          (BR_SLSH / KC_INT1); donor key
  *   - Fn1 + \           -> ] }          (KC_BSLS)
  *   - top-right key     -> tap Del, Shift/Super+tap Shift/Super+Insert  [KC_DELPASTE]
- *   - Ctrl + Up/Down    -> PageUp/PageDown   (modifier stripped)
- *   - Shift + Backspace -> Delete            (modifier stripped)
+ *   - Ctrl + Up/Down    -> PageUp/PageDown   (modifier stripped; key override)
+ *   - Shift + Backspace -> Delete            (modifier stripped; key override)
  * Bluetooth: hold Fn1 + Q for 3 s to pair (Q blinks blue, then green once
  *   connected). One host only, no profile switching. To reconnect, slide the
  *   mode switch off -> BT. RGB on/off lives on Fn1 + Tab.
@@ -70,29 +70,15 @@ void matrix_scan_user(void) {
 }
 
 const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
-    [WIN_BASE] = LAYOUT_ansi(
+    [BASE] = LAYOUT_ansi(
         KC_ESCQUOT, NH_1, NH_2, NH_3, NH_4, NH_5, NH_6, NH_7, NH_8, NH_9, NH_0, NH_MINS, NH_EQL, KC_BSPC, KC_DELPASTE,
         KC_TAB,  KC_Q, KC_W, KC_E, KC_R, KC_T, KC_Y, KC_U, KC_I, KC_O, KC_P, KC_LBRC, KC_RBRC, BR_BSLS, KC_HOME,
         KC_ESC,  KC_A, KC_S, KC_D, KC_F, KC_G, KC_H, KC_J, KC_K, KC_L, KC_SCLN, KC_QUOT, KC_ENT, KC_PGUP,
         KC_LSFT, KC_Z, KC_X, KC_C, KC_V, KC_B, KC_N, KC_M, KC_COMM, KC_DOT, KC_SLSH, KC_RSFT, KC_UP, KC_PGDN,
-        KC_LCTL, KC_LGUI, KC_LALT, KC_SPC, BR_SLSH, MO(WIN_FN1), MO(FN2), KC_LEFT, KC_DOWN, KC_RGHT),
+        KC_LCTL, KC_LGUI, KC_LALT, KC_SPC, BR_SLSH, MO(FN1), MO(FN2), KC_LEFT, KC_DOWN, KC_RGHT),
 
-    [WIN_FN1] = LAYOUT_ansi(
+    [FN1] = LAYOUT_ansi(
         KC_GRV,  KC_BRID, KC_BRIU, KC_TASK, KC_FLXP, RM_VALD, RM_VALU, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______, _______,
-        RM_TOGG, KC_BTPAIR, _______, _______, _______, _______, _______, _______, _______, _______, KC_INS, KC_DEL, KC_END, KC_BSLS, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
-        _______, _______, _______, QK_BOOT, KC_RALT, _______, _______, _______, _______, _______),
-
-    [MAC_BASE] = LAYOUT_ansi(
-        KC_ESCQUOT, NH_1, NH_2, NH_3, NH_4, NH_5, NH_6, NH_7, NH_8, NH_9, NH_0, NH_MINS, NH_EQL, KC_BSPC, KC_DELPASTE,
-        KC_TAB,  KC_Q, KC_W, KC_E, KC_R, KC_T, KC_Y, KC_U, KC_I, KC_O, KC_P, KC_LBRC, KC_RBRC, BR_BSLS, KC_HOME,
-        KC_ESC,  KC_A, KC_S, KC_D, KC_F, KC_G, KC_H, KC_J, KC_K, KC_L, KC_SCLN, KC_QUOT, KC_ENT, KC_PGUP,
-        KC_LSFT, KC_Z, KC_X, KC_C, KC_V, KC_B, KC_N, KC_M, KC_COMM, KC_DOT, KC_SLSH, KC_RSFT, KC_UP, KC_PGDN,
-        KC_LCTL, KC_LALT, KC_LGUI, KC_SPC, BR_SLSH, MO(MAC_FN1), MO(FN2), KC_LEFT, KC_DOWN, KC_RGHT),
-
-    [MAC_FN1] = LAYOUT_ansi(
-        KC_GRV,  KC_BRID, KC_BRIU, KC_MCTL, KC_LPAD, RM_VALD, RM_VALU, KC_MPRV, KC_MPLY, KC_MNXT, KC_MUTE, KC_VOLD, KC_VOLU, _______, _______,
         RM_TOGG, KC_BTPAIR, _______, _______, _______, _______, _______, _______, _______, _______, KC_INS, KC_DEL, KC_END, KC_BSLS, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______,
@@ -105,23 +91,30 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
         _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, _______, RM_SATU, RM_SPDD,
         _______, _______, _______, _______, _______, _______, _______, RM_HUED, RM_SATD, RM_HUEU)};
 
-/* See header for the full shortcut list. Ctrl+Up/Down and Shift+Backspace strip
- * the held modifier before sending the substitute, then restore it internally
- * (not re-sent) so other combos keep working and the OS auto-repeats on hold. */
-static bool ctrl_pgup_held  = false;
-static bool ctrl_pgdn_held  = false;
-static bool shift_fdel_held = false;   // Shift+Backspace -> Delete
-static bool delpaste_ins    = false;   // top-right held Insert (Shift -> Shift+Insert)
-static bool escquot_grv     = false;   // top-left held KC_GRV (Shift -> ")
+/* Ctrl+Up/Down -> PageUp/PageDown and Shift+Backspace -> Delete, trigger mod
+ * stripped (QMK key overrides). Activates on the key press only, and never falls
+ * back to the original key if the mod is released first (no stray Backspace).
+ * The two corner keys stay hand-rolled: an override can't tell the top-left Esc
+ * from the CapsLock Esc, nor the top-right Del from Fn1+[. */
+#define KO(mods, trig, repl) ko_make_with_layers_negmods_and_options(mods, trig, repl, ~0, 0, ko_option_activation_trigger_down | ko_option_no_reregister_trigger)
+static const key_override_t ko_pgup = KO(MOD_MASK_CTRL, KC_UP, KC_PGUP);
+static const key_override_t ko_pgdn = KO(MOD_MASK_CTRL, KC_DOWN, KC_PGDN);
+static const key_override_t ko_del  = KO(MOD_MASK_SHIFT, KC_BSPC, KC_DEL);
+const key_override_t *key_overrides[] = {&ko_pgup, &ko_pgdn, &ko_del};
+
+static bool delpaste_ins = false;   // top-right held Insert (Shift -> Shift+Insert)
+static bool escquot_grv  = false;   // top-left held KC_GRV (Shift -> ")
 
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     // Rolling onto any other key flushes a pending number as a tap (no F misfire).
-    if (record->event.pressed && nh_keycode && keycode != nh_keycode && !nh_held) {
+    // So does releasing a modifier: Shift let go before the digit must still give "!".
+    if (nh_keycode && keycode != nh_keycode && !nh_held && (record->event.pressed || IS_MODIFIER_KEYCODE(keycode))) {
         nh_flush_tap();
     }
     switch (keycode) {
         case NH_1 ... NH_EQL:
             if (record->event.pressed) {
+                if (nh_held) unregister_code16(nh_pairs[nh_keycode - NH_1].hold);   // another F-key still down
                 nh_keycode = keycode;
                 nh_timer   = timer_read();
                 nh_held    = false;
@@ -141,54 +134,6 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
                 bt_press(BT_PROFILE1);
             }
             return false;
-        case KC_UP:
-            if (record->event.pressed) {
-                if (get_mods() & MOD_MASK_CTRL) {
-                    uint8_t mods = get_mods();
-                    ctrl_pgup_held = true;
-                    del_mods(MOD_MASK_CTRL);
-                    register_code(KC_PGUP);
-                    set_mods(mods);
-                    return false;
-                }
-            } else if (ctrl_pgup_held) {
-                ctrl_pgup_held = false;
-                unregister_code(KC_PGUP);
-                return false;
-            }
-            return true;
-        case KC_DOWN:
-            if (record->event.pressed) {
-                if (get_mods() & MOD_MASK_CTRL) {
-                    uint8_t mods = get_mods();
-                    ctrl_pgdn_held = true;
-                    del_mods(MOD_MASK_CTRL);
-                    register_code(KC_PGDN);
-                    set_mods(mods);
-                    return false;
-                }
-            } else if (ctrl_pgdn_held) {
-                ctrl_pgdn_held = false;
-                unregister_code(KC_PGDN);
-                return false;
-            }
-            return true;
-        case KC_BSPC:
-            if (record->event.pressed) {
-                if (get_mods() & MOD_MASK_SHIFT) {
-                    uint8_t mods = get_mods();
-                    shift_fdel_held = true;
-                    del_mods(MOD_MASK_SHIFT);
-                    register_code(KC_DEL);
-                    set_mods(mods);
-                    return false;
-                }
-            } else if (shift_fdel_held) {
-                shift_fdel_held = false;
-                unregister_code(KC_DEL);
-                return false;
-            }
-            return true;
         case KC_DELPASTE:
             if (record->event.pressed) {
                 if (get_mods() & (MOD_MASK_SHIFT | MOD_MASK_GUI)) {

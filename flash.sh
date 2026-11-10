@@ -27,6 +27,6 @@ elif ! lsusb | grep -q 0c45:7040; then
 fi
 
 # SN32F248BF = SN32F24xB -> 0c45/7040, offset 0, no jumploader.
-# Raw HID needs root -> pkexec (a polkit agent must be running).
+# No root: needs udev/70-sonix-bootloader.rules installed (see README).
 echo "flashing: $BIN"
-pkexec "$FLASHER" --vidpid 0c45/7040 --file "$BIN" --offset 0
+"$FLASHER" --vidpid 0c45/7040 --file "$BIN" --offset 0
